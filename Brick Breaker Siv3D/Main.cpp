@@ -1,105 +1,100 @@
-﻿# include <Siv3D.hpp> // Siv3D v0.6.13
+﻿# include <Siv3D.hpp>
 
 void Main()
 {
-	// 背景の色を設定する | Set the background color
-	Scene::SetBackground(ColorF{ 0.6, 0.8, 0.7 });
+	// 1 つのブロックのサイズ | Size of a single block
+	constexpr Size BrickSize{ 40, 20 };
 
-	// 画像ファイルからテクスチャを作成する | Create a texture from an image file
-	const Texture texture{ U"example/windmill.png" };
+	// ボールの速さ（ピクセル / 秒） | Ball speed (pixels / second)
+	constexpr double BallSpeedPerSec = 480.0;
 
-	// 絵文字からテクスチャを作成する | Create a texture from an emoji
-	const Texture emoji{ U"🦖"_emoji };
+	// ボールの速度 | Ball velocity
+	Vec2 ballVelocity{ 0, -BallSpeedPerSec };
 
-	// 太文字のフォントを作成する | Create a bold font with MSDF method
-	const Font font{ FontMethod::MSDF, 48, Typeface::Bold };
+	// ボール | Ball
+	Circle ball{ 400, 400, 8 };
 
-	// テキストに含まれる絵文字のためのフォントを作成し、font に追加する | Create a font for emojis in text and add it to font as a fallback
-	const Font emojiFont{ 48, Typeface::ColorEmoji };
-	font.addFallback(emojiFont);
+	// ブロックの配列 | Array of bricks
+	Array<Rect> bricks;
 
-	// ボタンを押した回数 | Number of button presses
-	int32 count = 0;
-
-	// チェックボックスの状態 | Checkbox state
-	bool checked = false;
-
-	// プレイヤーの移動スピード | Player's movement speed
-	double speed = 200.0;
-
-	// プレイヤーの X 座標 | Player's X position
-	double playerPosX = 400;
-
-	// プレイヤーが右を向いているか | Whether player is facing right
-	bool isPlayerFacingRight = true;
+	for (int32 y = 0; y < 5; ++y)
+	{
+		for (int32 x = 0; x < (Scene::Width() / BrickSize.x); ++x)
+		{
+			bricks << Rect{ (x * BrickSize.x), (60 + y * BrickSize.y), BrickSize };
+		}
+	}
 
 	while (System::Update())
 	{
-		// テクスチャを描く | Draw the texture
-		texture.draw(20, 20);
+		// パドル | Paddle
+		const Rect paddle{ Arg::center(Cursor::Pos().x, 500), 60, 10 };
 
-		// テキストを描く | Draw text
-		font(U"Hello, Siv3D!🎮").draw(64, Vec2{ 20, 340 }, ColorF{ 0.2, 0.4, 0.8 });
+		// ボールを移動させる | Move the ball
+		ball.moveBy(ballVelocity * Scene::DeltaTime());
 
-		// 指定した範囲内にテキストを描く | Draw text within a specified area
-		font(U"Siv3D (シブスリーディー) は、ゲームやアプリを楽しく簡単な C++ コードで開発できるフレームワークです。")
-			.draw(18, Rect{ 20, 430, 480, 200 }, Palette::Black);
-
-		// 長方形を描く | Draw a rectangle
-		Rect{ 540, 20, 80, 80 }.draw();
-
-		// 角丸長方形を描く | Draw a rounded rectangle
-		RoundRect{ 680, 20, 80, 200, 20 }.draw(ColorF{ 0.0, 0.4, 0.6 });
-
-		// 円を描く | Draw a circle
-		Circle{ 580, 180, 40 }.draw(Palette::Seagreen);
-
-		// 矢印を描く | Draw an arrow
-		Line{ 540, 330, 760, 260 }.drawArrow(8, SizeF{ 20, 20 }, ColorF{ 0.4 });
-
-		// 半透明の円を描く | Draw a semi-transparent circle
-		Circle{ Cursor::Pos(), 40 }.draw(ColorF{ 1.0, 0.0, 0.0, 0.5 });
-
-		// ボタン | Button
-		if (SimpleGUI::Button(U"count: {}"_fmt(count), Vec2{ 520, 370 }, 120, (checked == false)))
+		// ブロックを順にチェックする | Check bricks in sequence
+		for (auto it = bricks.begin(); it != bricks.end(); ++it)
 		{
-			// カウントを増やす | Increase the count
-			++count;
+			// ブロックとボールが交差していたら | If block and ball intersect
+			if (it->intersects(ball))
+			{
+				// ブロックの上辺、または底辺と交差していたら | If ball intersects with top or bottom of the block
+				if (it->bottom().intersects(ball) || it->top().intersects(ball))
+				{
+					// ボールの速度の Y 成分の符号を反転する | Reverse the sign of the Y component of the ball's velocity
+					ballVelocity.y *= -1;
+				}
+				else // ブロックの左辺または右辺と交差していたら
+				{
+					// ボールの速度の X 成分の符号を反転する | Reverse the sign of the X component of the ball's velocity
+					ballVelocity.x *= -1;
+				}
+
+				// ブロックを配列から削除する（イテレータは無効になる） | Remove the block from the array (the iterator becomes invalid)
+				bricks.erase(it);
+
+				// これ以上チェックしない | Do not check any more
+				break;
+			}
 		}
 
-		// チェックボックス | Checkbox
-		SimpleGUI::CheckBox(checked, U"Lock \U000F033E", Vec2{ 660, 370 }, 120);
-
-		// スライダー | Slider
-		SimpleGUI::Slider(U"speed: {:.1f}"_fmt(speed), speed, 100, 400, Vec2{ 520, 420 }, 140, 120);
-
-		// 左キーが押されていたら | If left key is pressed
-		if (KeyLeft.pressed())
+		// 天井にぶつかったら | If the ball hits the ceiling
+		if ((ball.y < 0) && (ballVelocity.y < 0))
 		{
-			// プレイヤーが左に移動する | Player moves left
-			playerPosX = Max((playerPosX - speed * Scene::DeltaTime()), 60.0);
-			isPlayerFacingRight = false;
+			// ボールの速度の Y 成分の符号を反転する | Reverse the sign of the Y component of the ball's velocity
+			ballVelocity.y *= -1;
 		}
 
-		// 右キーが押されていたら | If right key is pressed
-		if (KeyRight.pressed())
+		// 左右の壁にぶつかったら | If the ball hits the left or right wall
+		if (((ball.x < 0) && (ballVelocity.x < 0))
+			|| ((Scene::Width() < ball.x) && (0 < ballVelocity.x)))
 		{
-			// プレイヤーが右に移動する | Player moves right
-			playerPosX = Min((playerPosX + speed * Scene::DeltaTime()), 740.0);
-			isPlayerFacingRight = true;
+			// ボールの速度の X 成分の符号を反転する | Reverse the sign of the X component of the ball's velocity
+			ballVelocity.x *= -1;
 		}
 
-		// プレイヤーを描く | Draw the player
-		emoji.scaled(0.75).mirrored(isPlayerFacingRight).drawAt(playerPosX, 540);
+		// パドルにあたったら | If the ball hits the left or right wall
+		if ((0 < ballVelocity.y) && paddle.intersects(ball))
+		{
+			// パドルの中心からの距離に応じてはね返る方向（速度ベクトル）を変える | Change the direction (velocity vector) of the ball depending on the distance from the center of the paddle
+			ballVelocity = Vec2{ (ball.x - paddle.center().x) * 10, -ballVelocity.y }.setLength(BallSpeedPerSec);
+		}
+
+		// すべてのブロックを描画する | Draw all the bricks
+		for (const auto& brick : bricks)
+		{
+			// ブロックの Y 座標に応じて色を変える | Change the color of the brick depending on the Y coordinate
+			brick.stretched(-1).draw(HSV{ brick.y - 40 });
+		}
+
+		// マウスカーソルを非表示にする | Hide the mouse cursor
+		Cursor::RequestStyle(CursorStyle::Hidden);
+
+		// ボールを描く | Draw the ball
+		ball.draw();
+
+		// パドルを描く | Draw the paddle
+		paddle.rounded(3).draw();
 	}
 }
-
-//
-// - Debug ビルド: プログラムの最適化を減らす代わりに、エラーやクラッシュ時に詳細な情報を得られます。
-//
-// - Release ビルド: 最大限の最適化でビルドします。
-//
-// - [デバッグ] メニュー → [デバッグの開始] でプログラムを実行すると、[出力] ウィンドウに詳細なログが表示され、エラーの原因を探せます。
-//
-// - Visual Studio を更新した直後は、プログラムのリビルド（[ビルド]メニュー → [ソリューションのリビルド]）が必要な場合があります。
-//
