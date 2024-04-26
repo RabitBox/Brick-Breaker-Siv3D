@@ -1,100 +1,119 @@
 ﻿# include <Siv3D.hpp>
 
+/// @brief ブロックのサイズ
+constexpr Size BRICK_SIZE{ 40, 20 };
+
+/// @brief ボールの速さ
+constexpr double BALL_SPEED = 480.0;
+
+/// @brief ブロックの数　縦
+constexpr int Y_COUNT = 5;
+
+/// @brief ブロックの数　横
+constexpr int X_COUNT = 20;
+
+/// @brief 合計ブロック数
+constexpr int MAX = Y_COUNT * X_COUNT;
+
 void Main()
 {
-	// 1 つのブロックのサイズ | Size of a single block
-	constexpr Size BrickSize{ 40, 20 };
+#pragma region Ball
+	/// @brief ボールの速度
+	Vec2 ballVelocity{ 0, -BALL_SPEED };
 
-	// ボールの速さ（ピクセル / 秒） | Ball speed (pixels / second)
-	constexpr double BallSpeedPerSec = 480.0;
-
-	// ボールの速度 | Ball velocity
-	Vec2 ballVelocity{ 0, -BallSpeedPerSec };
-
-	// ボール | Ball
+	/// @brief ボール
 	Circle ball{ 400, 400, 8 };
+#pragma endregion
 
-	// ブロックの配列 | Array of bricks
-	Array<Rect> bricks;
+#pragma region Bricks
+	/// @brief ブロック
+	Rect bricks[MAX];
 
-	for (int32 y = 0; y < 5; ++y)
-	{
-		for (int32 x = 0; x < (Scene::Width() / BrickSize.x); ++x)
-		{
-			bricks << Rect{ (x * BrickSize.x), (60 + y * BrickSize.y), BrickSize };
+	for (int y = 0; y < Y_COUNT; ++y) {
+		for (int x = 0; x < X_COUNT; ++x) {
+			int index = y * X_COUNT + x;
+			bricks[index] = Rect{
+				x * BRICK_SIZE.x,
+				60 + y * BRICK_SIZE.y,
+				BRICK_SIZE
+			};
 		}
 	}
+#pragma endregion
 
 	while (System::Update())
 	{
-		// パドル | Paddle
+#pragma region 更新
+		// パドル
 		const Rect paddle{ Arg::center(Cursor::Pos().x, 500), 60, 10 };
 
-		// ボールを移動させる | Move the ball
+		// ボール移動
 		ball.moveBy(ballVelocity * Scene::DeltaTime());
+#pragma endregion
 
-		// ブロックを順にチェックする | Check bricks in sequence
-		for (auto it = bricks.begin(); it != bricks.end(); ++it)
-		{
-			// ブロックとボールが交差していたら | If block and ball intersect
-			if (it->intersects(ball))
-			{
-				// ブロックの上辺、または底辺と交差していたら | If ball intersects with top or bottom of the block
-				if (it->bottom().intersects(ball) || it->top().intersects(ball))
+#pragma region 衝突
+		// ブロックとの衝突を検知
+		for (int i = 0; i < MAX; ++i) {
+			auto& refBrick = bricks[i];
+
+			if ( refBrick.intersects( ball ) ) {
+
+				// ブロックの上辺、または底辺と交差
+				if (refBrick.bottom().intersects(ball) || refBrick.top().intersects(ball))
 				{
-					// ボールの速度の Y 成分の符号を反転する | Reverse the sign of the Y component of the ball's velocity
 					ballVelocity.y *= -1;
 				}
-				else // ブロックの左辺または右辺と交差していたら
+				else // ブロックの左辺または右辺と交差
 				{
-					// ボールの速度の X 成分の符号を反転する | Reverse the sign of the X component of the ball's velocity
 					ballVelocity.x *= -1;
 				}
 
-				// ブロックを配列から削除する（イテレータは無効になる） | Remove the block from the array (the iterator becomes invalid)
-				bricks.erase(it);
+				// あたったブロックは画面外に出す
+				refBrick.y -= 600;
 
-				// これ以上チェックしない | Do not check any more
+				// 同一フレームでは複数のブロック衝突を検知しない
 				break;
 			}
 		}
 
-		// 天井にぶつかったら | If the ball hits the ceiling
+		// 天井との衝突を検知
 		if ((ball.y < 0) && (ballVelocity.y < 0))
 		{
-			// ボールの速度の Y 成分の符号を反転する | Reverse the sign of the Y component of the ball's velocity
 			ballVelocity.y *= -1;
 		}
 
-		// 左右の壁にぶつかったら | If the ball hits the left or right wall
+		// 壁との衝突を検知
 		if (((ball.x < 0) && (ballVelocity.x < 0))
 			|| ((Scene::Width() < ball.x) && (0 < ballVelocity.x)))
 		{
-			// ボールの速度の X 成分の符号を反転する | Reverse the sign of the X component of the ball's velocity
 			ballVelocity.x *= -1;
 		}
 
-		// パドルにあたったら | If the ball hits the left or right wall
+		// パドルとの衝突を検知
 		if ((0 < ballVelocity.y) && paddle.intersects(ball))
 		{
-			// パドルの中心からの距離に応じてはね返る方向（速度ベクトル）を変える | Change the direction (velocity vector) of the ball depending on the distance from the center of the paddle
-			ballVelocity = Vec2{ (ball.x - paddle.center().x) * 10, -ballVelocity.y }.setLength(BallSpeedPerSec);
+			ballVelocity = Vec2{
+				(ball.x - paddle.center().x) * 10,
+				-ballVelocity.y
+			}.setLength(BALL_SPEED);
 		}
+#pragma endregion
 
-		// すべてのブロックを描画する | Draw all the bricks
-		for (const auto& brick : bricks)
-		{
-			// ブロックの Y 座標に応じて色を変える | Change the color of the brick depending on the Y coordinate
-			brick.stretched(-1).draw(HSV{ brick.y - 40 });
-		}
-
-		// マウスカーソルを非表示にする | Hide the mouse cursor
+#pragma region 描画
+		// マウスカーソルを非表示
 		Cursor::RequestStyle(CursorStyle::Hidden);
 
-		// ボールを描く | Draw the ball
+		// ブロック描画
+		for (int i = 0; i < MAX; ++i) {
+			bricks[i].stretched(-1).draw(HSV{ bricks[i].y - 40 });
+		}
+
+		// ボール描画
 		ball.draw();
 
-		// パドルを描く | Draw the paddle
+		// パドル描画
 		paddle.rounded(3).draw();
+#pragma endregion
+
 	}
 }
