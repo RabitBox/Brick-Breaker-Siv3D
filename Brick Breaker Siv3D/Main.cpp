@@ -1,5 +1,10 @@
 ﻿# include <Siv3D.hpp>
 
+/*
+	古き良き書き方での実装
+	・安全性や利便性などは一切考えていない
+*/
+
 /// @brief ブロックのサイズ
 constexpr Size BRICK_SIZE{ 40, 20 };
 
