@@ -29,6 +29,7 @@ void Main()
 	/// @brief ブロック
 	Rect bricks[MAX];
 
+	// ブロックを初期化
 	for (int y = 0; y < Y_COUNT; ++y) {
 		for (int x = 0; x < X_COUNT; ++x) {
 			int index = y * X_COUNT + x;
@@ -57,10 +58,12 @@ void Main()
 		//==============================
 		// ブロックとの衝突を検知
 		for (int i = 0; i < MAX; ++i) {
-			auto& refBrick = bricks[i];
+			// 参照で保持
+			Rect& refBrick = bricks[i];
 
-			if ( refBrick.intersects( ball ) ) {
-
+			// 衝突を検知
+			if ( refBrick.intersects( ball ) )
+			{
 				// ブロックの上辺、または底辺と交差
 				if (refBrick.bottom().intersects(ball) || refBrick.top().intersects(ball))
 				{
