@@ -43,15 +43,18 @@ void Main()
 
 	while (System::Update())
 	{
-#pragma region 更新
+		//==============================
+		// 更新
+		//==============================
 		// パドル
 		const Rect paddle{ Arg::center(Cursor::Pos().x, 500), 60, 10 };
 
 		// ボール移動
 		ball.moveBy(ballVelocity * Scene::DeltaTime());
-#pragma endregion
 
-#pragma region 衝突
+		//==============================
+		// コリジョン
+		//==============================
 		// ブロックとの衝突を検知
 		for (int i = 0; i < MAX; ++i) {
 			auto& refBrick = bricks[i];
@@ -97,12 +100,10 @@ void Main()
 				-ballVelocity.y
 			}.setLength(BALL_SPEED);
 		}
-#pragma endregion
 
-#pragma region 描画
-		// マウスカーソルを非表示
-		Cursor::RequestStyle(CursorStyle::Hidden);
-
+		//==============================
+		// 描画
+		//==============================
 		// ブロック描画
 		for (int i = 0; i < MAX; ++i) {
 			bricks[i].stretched(-1).draw(HSV{ bricks[i].y - 40 });
@@ -113,7 +114,5 @@ void Main()
 
 		// パドル描画
 		paddle.rounded(3).draw();
-#pragma endregion
-
 	}
 }
