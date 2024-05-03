@@ -2,8 +2,8 @@
 
 /*
 	よりC++ライクな書き方
-	・構造体ベース
-	・ポインタは使わない
+	・クラスベース
+	・継承を行う
 */
 
 //==============================
@@ -35,8 +35,22 @@ namespace constants {
 	}
 }
 
+/// @brief 各オブジェクトの継承元クラス
+class IObject {
+public:
+	// 継承元となるクラスは、デストラクタをvirtualにしないとメモリリークの恐れがある
+	virtual ~IObject() {}
+
+	// 継承先で実装が想定される処理は virtual で仮想関数として定義する
+	virtual void Update() {}
+
+	// 継承先で実装が必須の関数は virtual と = 0 を記載することで、純粋仮想関数として定義する
+	virtual void Draw() = 0;
+};
+
 /// @brief ボール
-struct Ball {
+class Ball : public IObject {
+public:
 	/// @brief 速度
 	Vec2 velocity;
 
@@ -46,18 +60,19 @@ struct Ball {
 	Ball() : velocity({ 0, -constants::ball::SPEED }), ball({ 400, 400, 8 }) {}
 
 	/// @brief 更新
-	void Update() {
+	void Update() override {
 		ball.moveBy(velocity * Scene::DeltaTime());
 	}
 
 	/// @brief 描画
-	void Draw() {
+	void Draw() override {
 		ball.draw();
 	}
 };
 
 /// @brief ブロック
-struct Bricks {
+class Bricks : public IObject {
+public:
 	/// @brief ブロックリスト
 	Rect brickTable[constants::brick::MAX];
 
@@ -108,7 +123,7 @@ struct Bricks {
 	}
 
 	/// @brief 描画
-	void Draw() {
+	void Draw() override {
 		using namespace constants::brick;
 
 		for (int i = 0; i < MAX; ++i) {
@@ -118,7 +133,8 @@ struct Bricks {
 };
 
 /// @brief パドル
-struct Paddle {
+class Paddle : public IObject {
+public:
 	Rect paddle;
 
 	Paddle() : paddle(Rect(Arg::center(Cursor::Pos().x, 500), constants::paddle::SIZE)) {}
@@ -135,12 +151,12 @@ struct Paddle {
 	}
 
 	/// @brief 更新
-	void Update() {
+	void Update() override {
 		paddle.x = Cursor::Pos().x - (constants::paddle::SIZE.x / 2);
 	}
 
 	/// @brief 描画
-	void Draw() {
+	void Draw() override {
 		paddle.rounded(3).draw();
 	}
 };
