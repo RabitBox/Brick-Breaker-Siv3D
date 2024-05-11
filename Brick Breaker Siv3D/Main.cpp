@@ -36,7 +36,8 @@ namespace constants {
 }
 
 /// @brief ボール
-struct Ball {
+class Ball {
+public:
 	/// @brief 速度
 	Vec2 velocity;
 
@@ -57,7 +58,8 @@ struct Ball {
 };
 
 /// @brief ブロック
-struct Bricks {
+class Bricks {
+public:
 	/// @brief ブロックリスト
 	Rect brickTable[constants::brick::MAX];
 
@@ -118,7 +120,8 @@ struct Bricks {
 };
 
 /// @brief パドル
-struct Paddle {
+class Paddle {
+public:
 	Rect paddle;
 
 	Paddle() : paddle(Rect(Arg::center(Cursor::Pos().x, 500), constants::paddle::SIZE)) {}
