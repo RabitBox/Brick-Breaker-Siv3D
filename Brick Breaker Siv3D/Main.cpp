@@ -55,13 +55,14 @@ namespace constants {
 //==============================
 /// @brief ボール
 class Ball final {
-public:
+private:
 	/// @brief 速度
 	Vec2 velocity;
 
 	/// @brief ボール
 	Circle ball;
 
+public:
 	/// @brief コンストラクタ
 	Ball() : velocity({ 0, -constants::ball::SPEED }), ball({ 400, 400, 8 }) {}
 
@@ -76,6 +77,15 @@ public:
 	/// @brief 描画
 	void Draw() const {
 		ball.draw();
+	}
+
+	Circle GetCircle() const {
+
+		return ball;
+	}
+
+	Vec2 GetVelocity() const {
+		return velocity;
 	}
 
 	/// @brief 新しい移動速度を設定
@@ -94,10 +104,11 @@ public:
 
 /// @brief ブロック
 class Bricks final {
-public:
+private:
 	/// @brief ブロックリスト
 	Rect brickTable[constants::brick::MAX];
 
+public:
 	/// @brief コンストラクタ
 	Bricks() {
 		using namespace constants::brick;
@@ -132,9 +143,10 @@ public:
 
 /// @brief パドル
 class Paddle final {
-public:
+private:
 	Rect paddle;
 
+public:
 	/// @brief コンストラクタ
 	Paddle() : paddle(Rect(Arg::center(Cursor::Pos().x, 500), constants::paddle::SIZE)) {}
 
@@ -162,15 +174,22 @@ public:
 	static void Intersects(Ball* target) {
 		using namespace constants;
 
+		if ( !target ) {
+			return;
+		}
+
+		auto velocity = target->GetVelocity();
+		auto ball = target->GetCircle();
+
 		// 天井との衝突を検知
-		if ((target->ball.y < 0) && (target->velocity.y < 0))
+		if ((ball.y < 0) && (velocity.y < 0))
 		{
 			target->Reflect( reflect::VERTICAL );
 		}
 
 		// 壁との衝突を検知
-		if (((target->ball.x < 0) && (target->velocity.x < 0))
-			|| ((Scene::Width() < target->ball.x) && (0 < target->velocity.x)))
+		if (((ball.x < 0) && (velocity.x < 0))
+			|| ((Scene::Width() < ball.x) && (0 < velocity.x)))
 		{
 			target->Reflect( reflect::HORIZONTAL );
 		}
@@ -184,16 +203,22 @@ void Bricks::Intersects(Ball* const target) {
 	using namespace constants;
 	using namespace constants::brick;
 
+	if (!target) {
+		return;
+	}
+
+	auto ball = target->GetCircle();
+
 	for (int i = 0; i < MAX; ++i) {
 		// 参照で保持
 		Rect& refBrick = brickTable[i];
 
 		// 衝突を検知
-		if (refBrick.intersects(target->ball))
+		if (refBrick.intersects(ball))
 		{
 			// ブロックの上辺、または底辺と交差
-			if (refBrick.bottom().intersects(target->ball)
-				|| refBrick.top().intersects(target->ball))
+			if (refBrick.bottom().intersects(ball)
+				|| refBrick.top().intersects(ball))
 			{
 				target->Reflect( reflect::VERTICAL );
 			}
@@ -212,11 +237,18 @@ void Bricks::Intersects(Ball* const target) {
 }
 
 void Paddle::Intersects(Ball* const target) const {
-	if ((0 < target->velocity.y) && paddle.intersects(target->ball))
+	if (!target) {
+		return;
+	}
+
+	auto velocity = target->GetVelocity();
+	auto ball = target->GetCircle();
+
+	if ((0 < velocity.y) && paddle.intersects(ball))
 	{
 		target->SetVelocity(Vec2{
-			(target->ball.x - paddle.center().x) * 10,
-			-target->velocity.y
+			(ball.x - paddle.center().x) * 10,
+			-velocity.y
 		});
 	}
 }
