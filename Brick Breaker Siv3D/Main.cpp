@@ -51,10 +51,30 @@ namespace constants {
 }
 
 //==============================
+// 列挙
+//==============================
+namespace brick{
+	namespace intersect{
+		enum class Result {
+			NONE,		// 衝突なし
+			VERTICAL,	// 縦向きの衝突
+			HORIZONTAL	// 横向きの衝突
+		};
+	};
+	
+};
+
+//==============================
 // クラス宣言
 //==============================
+class IObject
+{
+public:
+	virtual void Draw() const = 0;
+};
+
 /// @brief ボール
-class Ball final {
+class Ball final : public IObject {
 private:
 	/// @brief 速度
 	Vec2 velocity;
@@ -74,19 +94,9 @@ public:
 		ball.moveBy(velocity * Scene::DeltaTime());
 	}
 
-	/// @brief 描画
-	void Draw() const {
-		ball.draw();
-	}
+	Circle GetCircle() const { return ball; }
 
-	Circle GetCircle() const {
-
-		return ball;
-	}
-
-	Vec2 GetVelocity() const {
-		return velocity;
-	}
+	Vec2 GetVelocity() const { return velocity; }
 
 	/// @brief 新しい移動速度を設定
 	/// @param newVelocity 新しい移動速度
@@ -100,6 +110,35 @@ public:
 	void Reflect( const Vec2 reflectVec ) {
 		velocity *= reflectVec;
 	}
+
+public:
+	/// @brief 描画
+	void Draw() const final { ball.draw(); }
+};
+
+/// @brief ブロック
+class Brick final : public IObject {
+private:
+	Rect _brick;
+
+	int _life;
+
+public:
+	Brick() : _life(0), _brick({}) {}
+	Brick(int x, int y, int life) : _life( life ) {
+		using namespace constants::brick;
+		_brick = Rect{
+			x * SIZE.x,
+			60 + y * SIZE.y,
+			SIZE
+		};
+	}
+	~Brick() {}
+
+	brick::intersect::Result Intersects(Ball* const target);
+
+public:
+	void Draw() const final { if( _life > 0 ) _brick.stretched(-1).draw(HSV{ _brick.y - 40 });}
 };
 
 /// @brief ブロック
@@ -107,6 +146,9 @@ class Bricks final {
 private:
 	/// @brief ブロックリスト
 	Rect brickTable[constants::brick::MAX];
+
+	/// @brief ブロックリスト
+	Brick _brickTable[constants::brick::MAX];
 
 public:
 	/// @brief コンストラクタ
@@ -116,11 +158,7 @@ public:
 		for (int y = 0; y < Y_COUNT; ++y) {
 			for (int x = 0; x < X_COUNT; ++x) {
 				int index = y * X_COUNT + x;
-				brickTable[index] = Rect{
-					x * SIZE.x,
-					60 + y * SIZE.y,
-					SIZE
-				};
+				_brickTable[index] = Brick{ x, y, 1 };
 			}
 		}
 	}
@@ -136,13 +174,13 @@ public:
 		using namespace constants::brick;
 
 		for (int i = 0; i < MAX; ++i) {
-			brickTable[i].stretched(-1).draw(HSV{ brickTable[i].y - 40 });
+			_brickTable[i].Draw();
 		}
 	}
 };
 
 /// @brief パドル
-class Paddle final {
+class Paddle final : public IObject {
 private:
 	Rect paddle;
 
@@ -161,10 +199,9 @@ public:
 		paddle.x = Cursor::Pos().x - (constants::paddle::SIZE.x / 2);
 	}
 
+public:
 	/// @brief 描画
-	void Draw() const {
-		paddle.rounded(3).draw();
-	}
+	void Draw() const final { paddle.rounded(3).draw(); }
 };
 
 /// @brief 壁
@@ -197,45 +234,67 @@ public:
 };
 
 //==============================
-// 定義
+// クラスメンバ関数定義
 //==============================
+#pragma region Brick
+brick::intersect::Result Brick::Intersects(Ball* const target) {
+	using namespace brick::intersect;
+
+	if ( _life <= 0 ) {
+		return Result::NONE;
+	}
+
+	auto ball = target->GetCircle();
+
+	if ( _brick.intersects( ball ) ) {
+		_life--;
+
+		// ブロックの上辺、または底辺と交差
+		if (_brick.bottom().intersects(ball)
+			|| _brick.top().intersects(ball))
+		{
+			return Result::VERTICAL;
+		}
+		else // ブロックの左辺または右辺と交差
+		{
+			return Result::HORIZONTAL;
+		}
+	}
+	return Result::NONE;
+}
+#pragma endregion
+
+#pragma region Bricks
 void Bricks::Intersects(Ball* const target) {
-	using namespace constants;
 	using namespace constants::brick;
+	using namespace brick::intersect;
 
 	if (!target) {
 		return;
 	}
 
-	auto ball = target->GetCircle();
-
 	for (int i = 0; i < MAX; ++i) {
-		// 参照で保持
-		Rect& refBrick = brickTable[i];
+		Brick& refBrick( _brickTable[i] );
 
-		// 衝突を検知
-		if (refBrick.intersects(ball))
+		switch ( refBrick.Intersects(target) )
 		{
-			// ブロックの上辺、または底辺と交差
-			if (refBrick.bottom().intersects(ball)
-				|| refBrick.top().intersects(ball))
-			{
-				target->Reflect( reflect::VERTICAL );
-			}
-			else // ブロックの左辺または右辺と交差
-			{
-				target->Reflect( reflect::HORIZONTAL );
-			}
+		case Result::VERTICAL:
+			target->Reflect(constants::reflect::VERTICAL);
+			return;
 
-			// あたったブロックは画面外に出す
-			refBrick.y -= 600;
+		case Result::HORIZONTAL:
+			target->Reflect(constants::reflect::HORIZONTAL);
+			return;
 
-			// 同一フレームでは複数のブロック衝突を検知しない
+		case Result::NONE:
+		default:
 			break;
 		}
 	}
 }
+#pragma endregion
 
+#pragma region Paddle
 void Paddle::Intersects(Ball* const target) const {
 	if (!target) {
 		return;
@@ -252,6 +311,7 @@ void Paddle::Intersects(Ball* const target) const {
 		});
 	}
 }
+#pragma endregion
 
 //==============================
 // エントリー
