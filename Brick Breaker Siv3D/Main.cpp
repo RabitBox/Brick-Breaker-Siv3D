@@ -260,16 +260,32 @@ public:
 };
 
 class GameMain : public IGameScene {
-public:
-	GameMain() {
-	}
+private:
+	Bricks _bricks;
+	Ball _ball;
+	Paddle _paddle;
 
+public:
+	GameMain() {}
 	virtual ~GameMain() {}
 
 public:
-	void Update() final {}
-	void Collision() final {}
-	void Draw() final {}
+	void Update() final {
+		_paddle.Update();
+		_ball.Update();
+	}
+
+	void Collision() final {
+		_bricks.Intersects( &_ball );
+		Field::Intersects( &_ball );
+		_paddle.Intersects( &_ball );
+	}
+
+	void Draw() final {
+		_bricks.Draw();
+		_ball.Draw();
+		_paddle.Draw();
+	}
 };
 
 //==============================
@@ -358,30 +374,12 @@ void Paddle::Intersects(Ball* const target) const {
 //==============================
 void Main()
 {
-	Bricks bricks;
-	Ball ball;
-	Paddle paddle;
+	GameMain gameMain;
 
 	while (System::Update())
 	{
-		//==============================
-		// 更新
-		//==============================
-		paddle.Update();
-		ball.Update();
-
-		//==============================
-		// コリジョン
-		//==============================
-		bricks.Intersects( &ball );
-		Field::Intersects( &ball );
-		paddle.Intersects( &ball );
-
-		//==============================
-		// 描画
-		//==============================
-		bricks.Draw();
-		ball.Draw();
-		paddle.Draw();
+		gameMain.Update();
+		gameMain.Collision();
+		gameMain.Draw();
 	}
 }
