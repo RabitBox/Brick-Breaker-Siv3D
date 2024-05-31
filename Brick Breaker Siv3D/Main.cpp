@@ -67,11 +67,26 @@ namespace brick{
 //==============================
 // クラス宣言
 //==============================
+#pragma region インターフェース
 class IObject
 {
 public:
+	virtual ~IObject() {}
+
+public:
 	virtual void Draw() const = 0;
 };
+
+class IGameScene {
+public:
+	virtual ~IGameScene() {}
+
+public:
+	virtual void Update() = 0;
+	virtual void Collision() = 0;
+	virtual void Draw() = 0;
+};
+#pragma endregion
 
 /// @brief ボール
 class Ball final : public IObject {
@@ -138,15 +153,14 @@ public:
 	brick::intersect::Result Intersects(Ball* const target);
 
 public:
-	void Draw() const final { if( _life > 0 ) _brick.stretched(-1).draw(HSV{ _brick.y - 40 });}
+	void Draw() const final {
+		if( _life > 0 ) _brick.stretched(-1).draw(HSV{ _brick.y - 40 });
+	}
 };
 
 /// @brief ブロック
 class Bricks final {
 private:
-	/// @brief ブロックリスト
-	Rect brickTable[constants::brick::MAX];
-
 	/// @brief ブロックリスト
 	Brick _brickTable[constants::brick::MAX];
 
@@ -205,7 +219,7 @@ public:
 };
 
 /// @brief 壁
-class Wall {
+class Field {
 public:
 	/// @brief 衝突検知
 	static void Intersects(Ball* target) {
@@ -231,6 +245,31 @@ public:
 			target->Reflect( reflect::HORIZONTAL );
 		}
 	}
+
+	/// @brief 画面外に出ているか
+	/// @param target 対象オブジェクト
+	/// @return 出ている場合はtrue
+	static bool IsOutScreen( Ball* target ) {
+		if (!target) {
+			return false;
+		}
+
+		auto ball = target->GetCircle();
+		return (Scene::Height() > ball.y);
+	}
+};
+
+class GameMain : public IGameScene {
+public:
+	GameMain() {
+	}
+
+	virtual ~GameMain() {}
+
+public:
+	void Update() final {}
+	void Collision() final {}
+	void Draw() final {}
 };
 
 //==============================
@@ -303,6 +342,7 @@ void Paddle::Intersects(Ball* const target) const {
 	auto velocity = target->GetVelocity();
 	auto ball = target->GetCircle();
 
+	// ベクトルが下方向の時のみ反射
 	if ((0 < velocity.y) && paddle.intersects(ball))
 	{
 		target->SetVelocity(Vec2{
@@ -334,7 +374,7 @@ void Main()
 		// コリジョン
 		//==============================
 		bricks.Intersects( &ball );
-		Wall::Intersects( &ball );
+		Field::Intersects( &ball );
 		paddle.Intersects( &ball );
 
 		//==============================
