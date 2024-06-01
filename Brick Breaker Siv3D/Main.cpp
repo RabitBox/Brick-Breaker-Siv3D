@@ -1,11 +1,5 @@
 ﻿# include <Siv3D.hpp>
 
-/*
-	よりC++ライクな書き方
-	・クラスベース
-	・継承を行う
-*/
-
 //==============================
 // 前方宣言
 //==============================
@@ -257,8 +251,18 @@ public:
 		auto ball = target->GetCircle();
 		return (Scene::Height() > ball.y);
 	}
+
+	static bool IsOnField( Ball* target ) {
+		if (!target) {
+			return false;
+		}
+
+		auto ball = target->GetCircle();
+		return (Scene::Height() < ball.y);
+	}
 };
 
+/// @brief メインゲームシーン
 class GameMain : public IGameScene {
 private:
 	Bricks _bricks;
